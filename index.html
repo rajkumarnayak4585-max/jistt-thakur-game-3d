@@ -9,7 +9,8 @@ function createRoom(){
  const shortId=String(Math.floor(100000+Math.random()*900000));
  say("Creating short Room ID...");
 
- peer=new Peer(shortId);
+  const shortId = String(Math.floor(100000 + Math.random() * 900000));
+peer = new Peer(shortId);
 
  peer.on("open",id=>{
   showRoom(id);
