@@ -1,235 +1,103 @@
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MAYANK KING SNAKE ARENA</title>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:radial-gradient(circle at top,#243b55,#080d19 65%);color:white;font-family:Arial,sans-serif;text-align:center}
-header{padding:18px}
-h1{margin:5px;color:#ffe66d;text-shadow:0 0 15px #ff9d00;font-size:clamp(25px,5vw,42px)}
-.sub{color:#b8d7ff}
-.panel{width:min(1100px,96%);margin:auto;background:#101a2dcc;border:1px solid #496080;border-radius:18px;padding:15px;box-shadow:0 10px 40px #0008}
-.controls{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin:10px}
-button,input{padding:12px;border:0;border-radius:9px;font-size:15px}
-button{background:linear-gradient(120deg,#ffb703,#ff6b00);font-weight:bold;cursor:pointer;color:#17100a}
-button:hover{filter:brightness(1.15)}
-input{background:#eaf2ff;max-width:220px}
-#status{color:#8fffc1;min-height:24px;margin:10px}
-#room{color:#ffe66d;font-weight:bold;letter-spacing:2px}
-.players{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
-.player{background:#1b2940;padding:10px;border-radius:10px;border:1px solid #405574}
-.player b{display:block;margin-bottom:5px}
-canvas{width:100%;max-width:1000px;background:#071526;border:3px solid #6682a5;border-radius:12px;display:block;margin:auto;touch-action:none}
-.help{color:#b9c8dd;font-size:13px;line-height:1.7}
-.mobile{display:grid;grid-template-columns:repeat(3,55px);gap:6px;justify-content:center;margin:15px auto}
-.mobile button{padding:13px;font-size:20px}
-@media(max-width:600px){.players{grid-template-columns:repeat(2,1fr)}.panel{padding:8px}}
-</style>
-</head>
-<body>
-<header>
-<h1>👑 MAYANK KING SNAKE ARENA</h1>
-<div class="sub">🌈 Rainbow Snakes • 🍉 Fruit Challenge • Online Multiplayer</div>
-</header>
-
-<div class="panel">
-<div class="controls">
-<button onclick="createRoom()">CREATE ROOM</button>
-<input id="roomInput" placeholder="Enter Room ID">
-<button onclick="joinRoom()">JOIN ROOM</button>
-</div>
-<div id="status">Create a room or join your friend's room.</div>
-<div>ROOM ID: <span id="room">Not Connected</span></div>
-
-<div class="players">
-<div class="player"><b style="color:#ffe66d">👑 MAYANK KING</b><span id="s0">Score: 0</span></div>
-<div class="player"><b style="color:#58eaff">⚡ DEV</b><span id="s1">Score: 0</span></div>
-<div class="player"><b style="color:#ff75b5">🔥 ROHIT</b><span id="s2">Score: 0</span></div>
-<div class="player"><b style="color:#8fff75">💎 RAJ</b><span id="s3">Score: 0</span></div>
-</div>
-
-<canvas id="game" width="1000" height="620"></canvas>
-
-<div class="mobile">
-<button onclick="sendDir(0,-1)">⬆️</button>
-<button onclick="sendDir(-1,0)">⬅️</button>
-<button onclick="sendDir(1,0)">➡️</button>
-<button onclick="sendDir(0,1)" style="grid-column:2">⬇️</button>
-</div>
-<p class="help">
-Computer: Arrow Keys / WASD to move<br>
-Mobile: Use the direction buttons<br>
-Host creates the room. Friends enter the same Room ID to join.
-</p>
-</div>
-
-<script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-const CELL=20, COLS=50, ROWS=31;
-const names=["MAYANK KING","DEV","ROHIT","RAJ"];
-const fruits=["🍎","🍌","🍊","🍇","🍓","🍉","🍍","🥝","🍒","🥭"];
-let peer=null, host=false, hostConn=null, connections=[];
-let myIndex=-1, players=[], fruit=null, running=false;
-let lastTick=0, tickTimer=null, gameOver=false;
-
-function randomFruit(){
- return {x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*ROWS),type:Math.floor(Math.random()*fruits.length)};
-}
-function newPlayer(i){
- const starts=[{x:7,y:7},{x:40,y:7},{x:7,y:23},{x:40,y:23}];
- const p=starts[i];
- return {id:i,name:names[i],snake:[{x:p.x,y:p.y},{x:p.x-1,y:p.y},{x:p.x-2,y:p.y}],dir:{x:1,y:0},next:{x:1,y:0},score:0,alive:true};
-}
-function freshGame(){
- players=[0,1,2,3].map(newPlayer);
- fruit=randomFruit();gameOver=false;running=true;
-}
-function say(t){document.getElementById("status").textContent=t;}
-function showRoom(id){document.getElementById("room").textContent=id;}
-
+ 
 function createRoom(){
- if(peer)peer.destroy();
- host=true;myIndex=0;connections=[];
- say("Creating room...");
- peer=new Peer();
+ if(peer) peer.destroy();
+
+ host=true;
+ myIndex=0;
+ connections=[];
+
+ const shortId=String(Math.floor(100000+Math.random()*900000));
+ say("Creating short Room ID...");
+
+ peer=new Peer(shortId);
+
  peer.on("open",id=>{
   showRoom(id);
-  say("Room ready! Share this Room ID with your friends.");
-  freshGame();startHost();
+  say("Room ready! Share this 6-digit ID with friends.");
+  freshGame();
+  startHost();
  });
+
  peer.on("connection",conn=>{
   conn.on("open",()=>{
    let slot=[1,2,3].find(i=>!connections.some(c=>c.slot===i));
-   if(slot===undefined){conn.send({type:"full"});conn.close();return;}
-   conn.slot=slot;connections.push(conn);
+   if(slot===undefined){
+    conn.send({type:"full"});
+    conn.close();
+    return;
+   }
+   conn.slot=slot;
+   connections.push(conn);
    conn.send({type:"welcome",slot,players,fruit});
    broadcast();
+
    conn.on("data",data=>{
     if(data.type==="dir" && players[slot]){
      const p=players[slot];
-     if(!(data.dir.x===-p.dir.x && data.dir.y===-p.dir.y))p.next=data.dir;
+     if(!(data.dir.x===-p.dir.x && data.dir.y===-p.dir.y)){
+      p.next=data.dir;
+     }
     }
    });
+
    conn.on("close",()=>{
     connections=connections.filter(c=>c!==conn);
-    if(players[slot])players[slot].alive=false;
+    if(players[slot]) players[slot].alive=false;
     broadcast();
    });
   });
  });
- peer.on("error",e=>say("Connection error: "+e.type));
+
+ peer.on("error",e=>{
+  say("Room error: "+e.type+". Try creating another room.");
+ });
 }
 
 function joinRoom(){
  const id=document.getElementById("roomInput").value.trim();
- if(!id){say("Please enter your friend's Room ID.");return;}
- if(peer)peer.destroy();
- host=false;myIndex=-1;say("Joining room...");
+
+ if(!/^\d{6}$/.test(id)){
+  say("Please enter a valid 6-digit Room ID.");
+  return;
+ }
+
+ if(peer) peer.destroy();
+
+ host=false;
+ myIndex=-1;
+ say("Joining room...");
+
  peer=new Peer();
+
  peer.on("open",()=>{
   hostConn=peer.connect(id,{reliable:true});
-  hostConn.on("open",()=>{showRoom(id);say("Connected! Waiting for player details...");});
+
+  hostConn.on("open",()=>{
+   showRoom(id);
+   say("Connected! Waiting for game...");
+  });
+
   hostConn.on("data",data=>{
-   if(data.type==="full"){say("Room is full. Try another room.");return;}
+   if(data.type==="full"){
+    say("Room is full!");
+    return;
+   }
    if(data.type==="welcome"){
-    myIndex=data.slot;players=data.players;fruit=data.fruit;
-    say("Joined as "+names[myIndex]+"! Game is live.");
+    myIndex=data.slot;
+    players=data.players;
+    fruit=data.fruit;
+    say("Joined as "+names[myIndex]+"!");
+    draw();
    }
    if(data.type==="state"){
-    players=data.players;fruit=data.fruit;draw();
+    players=data.players;
+    fruit=data.fruit;
+    draw();
    }
   });
+
   hostConn.on("close",()=>say("Host disconnected."));
  });
- peer.on("error",e=>say("Could not join: "+e.type));
-}
 
-function startHost(){
- if(tickTimer)clearInterval(tickTimer);
- tickTimer=setInterval(()=>{
-  if(!running)return;
-  updateGame();broadcast();draw();
- },125);
+ peer.on("error",e=>say("Join error: "+e.type));
 }
-function broadcast(){
- const msg={type:"state",players,fruit};
- connections.forEach(c=>{if(c.open)c.send(msg)});
-}
-function sendDir(x,y){
- if(myIndex<0)return;
- const p=players[myIndex];if(!p)return;
- if(x===-p.dir.x&&y===-p.dir.y)return;
- if(host)p.next={x,y};
- else if(hostConn&&hostConn.open)hostConn.send({type:"dir",dir:{x,y}});
-}
-
-function updateGame(){
- for(const p of players){
-  if(!p||!p.alive)continue;
-  p.dir=p.next;
-  const head={x:p.snake[0].x+p.dir.x,y:p.snake[0].y+p.dir.y};
-  if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS){
-   p.alive=false;continue;
-  }
-  if(p.snake.some(s=>s.x===head.x&&s.y===head.y)){
-   p.alive=false;continue;
-  }
-  p.snake.unshift(head);
-  if(fruit&&head.x===fruit.x&&head.y===fruit.y){
-   p.score+=10;fruit=randomFruit();
-  }else p.snake.pop();
- }
- if(players.every(p=>!p.alive))running=false;
-}
-
-function draw(){
- ctx.clearRect(0,0,canvas.width,canvas.height);
- ctx.fillStyle="#071526";ctx.fillRect(0,0,canvas.width,canvas.height);
- ctx.strokeStyle="#152941";ctx.lineWidth=.5;
- for(let x=0;x<=canvas.width;x+=CELL){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}
- for(let y=0;y<=canvas.height;y+=CELL){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}
- players.forEach((p,i)=>{
-  if(!p)return;
-  document.getElementById("s"+i).textContent="Score: "+p.score+(p.alive?"":" • OUT");
-  p.snake.forEach((s,j)=>{
-   const hue=(Date.now()/15+j*20+i*75)%360;
-   ctx.fillStyle=`hsl(${hue},100%,${j===0?65:52}%)`;
-   ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=j===0?14:5;
-   ctx.beginPath();ctx.roundRect(s.x*CELL+2,s.y*CELL+2,CELL-4,CELL-4,6);ctx.fill();
-   ctx.shadowBlur=0;
-   if(j===0){
-    ctx.fillStyle="white";ctx.font="bold 11px Arial";
-    ctx.fillText("●",s.x*CELL+5,s.y*CELL+14);
-   }
-  });
-  if(p.snake[0]){
-   ctx.fillStyle="white";ctx.font="bold 12px Arial";
-   ctx.fillText(p.name,p.snake[0].x*CELL-5,p.snake[0].y*CELL-8);
-  }
- });
- if(fruit){
-  ctx.font="25px Arial";ctx.textAlign="center";
-  ctx.fillText(fruits[fruit.type],fruit.x*CELL+10,fruit.y*CELL+18);
- }
- if(!running){
-  ctx.fillStyle="#000a";ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="#ffe66d";ctx.textAlign="center";ctx.font="bold 38px Arial";
-  ctx.fillText("GAME OVER",canvas.width/2,canvas.height/2);
-  ctx.font="18px Arial";ctx.fillStyle="white";
-  ctx.fillText("Host can create a new room to play again",canvas.width/2,canvas.height/2+38);
- }
-}
-window.addEventListener("keydown",e=>{
- const keys={ArrowUp:[0,-1],w:[0,-1],ArrowDown:[0,1],s:[0,1],ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0]};
- const k=keys[e.key]||keys[e.key.toLowerCase()];
- if(k){e.preventDefault();sendDir(k[0],k[1]);}
-});
-freshGame();running=false;draw();
-</script>
-</body>
-</html>
